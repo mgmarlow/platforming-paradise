@@ -2,14 +2,16 @@ var playState = {
 
     create: function(){
 
+        // Make sure that the cursor keys do not capture browser movement
+        game.input.keyboard.addKeyCapture([Phaser.Keyboard.UP,
+            Phaser.Keyboard.DOWN, Phaser.Keyboard.LEFT, Phaser.Keyboard.RIGHT]);
         this.cursor = game.input.keyboard.createCursorKeys();
-        /*
+
         this.wasd = {
             up: game.input.keyboard.addKey(Phaser.Keyboard.W),
-            down: game.input.keyboard.addKey(Phaser.Keyboard.S),
             left: game.input.keyboard.addKey(Phaser.Keyboard.A),
             right: game.input.keyboard.addKey(Phaser.Keyboard.D)
-        };*/
+        };
 
         this.player = game.add.sprite(game.world.centerX, game.world.centerY, 'player');
         this.player.anchor.setTo(0.5, 0.5);
@@ -23,6 +25,8 @@ var playState = {
         this.enemies.enableBody = true;
         this.enemies.createMultiple(10, 'enemy');
 
+        this.nextEnemy = 0;
+
         this.coin = game.add.sprite(60, 140, 'coin');
         game.physics.arcade.enable(this.coin);
         this.coin.anchor.setTo(0.5, 0.5);
@@ -32,13 +36,20 @@ var playState = {
         this.coinSound = game.add.audio('coin');
         this.deadSound = game.add.audio('dead');
 
+        // Particle Emitter
+        this.emitter = game.add.emitter(0, 0, 15);
+        this.emitter.makeParticles('pixel'); // Set the pixel image for particles
+        this.emitter.setYSpeed(-150, 150); // Speed will randomly be picked between -150 and 150
+        this.emitter.setXSpeed(-150, 150);
+        this.emitter.gravity = 0; // No gravity for particles
+
         this.scoreLabel = game.add.text(30, 30, 'score: 0',
                                         { font: '18px Arial', fill: '#ffffff' });
 
         game.global.score = 0; // Global so that menu can use it
 
         this.createWorld();
-        game.time.events.loop(2200, this.addEnemy, this);
+        //game.time.events.loop(2200, this.addEnemy, this);
     },
 
     update: function(){
@@ -49,6 +60,16 @@ var playState = {
 
         if(!this.player.inWorld){
             this.playerDie();
+        }
+
+        if (this.nextEnemy < game.time.now){
+            var start = 4000, end = 1000, maxScore = 100;
+            // Make it so difficulty is scaling, here we make it so that the game
+            // puts forth more enemies the more score you have collected
+            var delay = Math.max(start - (start-end)*game.global.score/maxScore, end);
+
+            this.addEnemy();
+            this.nextEnemy = game.time.now + delay; // Update nextEnemy to have a new enemy in 2.2 sec
         }
 
         game.physics.arcade.overlap(this.player, this.coin, this.takeCoin, null, this);
@@ -64,12 +85,12 @@ var playState = {
 
     movePlayer: function(){
         // if left arrow is pressed,
-        if(this.cursor.left.isDown){
+        if(this.cursor.left.isDown || this.wasd.left.isDown){
             // move the player to the left
             this.player.body.velocity.x = -200;
             this.player.animations.play('left'); // Begin left animation
         }
-        else if(this.cursor.right.isDown){
+        else if(this.cursor.right.isDown || this.wasd.right.isDown){
             // move player to the right
             this.player.body.velocity.x = 200;
             this.player.animations.play('right'); // Begin right animation
@@ -82,7 +103,7 @@ var playState = {
         }
 
         // jumping
-        if ((this.cursor.up.isDown) && this.player.body.touching.down){
+        if ((this.cursor.up.isDown || this.wasd.up.isDown) && this.player.body.touching.down){
             // if the up key is pressed and the player is touching the ground
             // jump player
             this.player.body.velocity.y = -320;
@@ -120,15 +141,33 @@ var playState = {
     },
 
     playerDie: function(){
+        // If the player is already dead, do nothing
+        if (!this.player.alive){
+            return;
+        }
+
+        // Make player disappear from the screen
+        this.player.kill();
+
+        this.emitter.x = this.player.x;
+        this.emitter.y = this.player.y;
+        this.emitter.start(true, 600, null, 15);
+
         this.deadSound.play();
-        game.state.start('menu');
+
+        //game.state.start('menu');
+        // Call startMenu in 1000ms;
+        game.time.events.add(1000, function(){ game.state.start('menu'); }, this);
     },
 
     takeCoin: function(player, coin){
         game.global.score += 5;
         this.scoreLabel.text = 'score: ' + game.global.score;
         this.coinSound.play();
+        game.add.tween(this.player.scale).to({x: 1.3, y: 1.3}, 50).to({x: 1, y: 1}, 150).start();
         this.updateCoinPosition();
+        this.coin.scale.setTo(0,0);
+        game.add.tween(this.coin.scale).to({x: 1, y: 1}, 300).start();
     },
 
     updateCoinPosition: function(){
