@@ -54,7 +54,7 @@ var playState = {
 
     update: function(){
         // collision between walls and player
-        game.physics.arcade.collide(this.player, this.walls); // this works because we enables Arcade physics for both the player and the walls
+        game.physics.arcade.collide(this.player, this.layer); // this works because we enables Arcade physics for both the player and the walls
         // lets move our player!
         this.movePlayer();
 
@@ -77,7 +77,7 @@ var playState = {
 
         // ENEMY COLLISIONS
         // enemies and walls
-        game.physics.arcade.collide(this.enemies, this.walls);
+        game.physics.arcade.collide(this.enemies, this.layer);
 
         // call 'playerDie' function when the player and enemy overlap
         game.physics.arcade.overlap(this.player, this.enemies, this.playerDie, null, this);
@@ -103,7 +103,7 @@ var playState = {
         }
 
         // jumping
-        if ((this.cursor.up.isDown || this.wasd.up.isDown) && this.player.body.touching.down){
+        if ((this.cursor.up.isDown || this.wasd.up.isDown) && this.player.body.onFloor()){
             // if the up key is pressed and the player is touching the ground
             // jump player
             this.player.body.velocity.y = -320;
@@ -112,31 +112,13 @@ var playState = {
     },
 
     createWorld: function(){
-        // lets add some walls
-        this.walls = game.add.group(); // create a new group
-        this.walls.enableBody = true;  // add Arcade physics to the whole group
-
-        // create the 10 walls
-        game.add.sprite(0, 0, 'wallV', 0, this.walls); // left
-        game.add.sprite(480, 0, 'wallV', 0, this.walls); // Right
-
-        game.add.sprite(0, 0, 'wallH', 0, this.walls); // top left
-        game.add.sprite(300, 0, 'wallH', 0, this.walls); // top right
-        game.add.sprite(0, 320, 'wallH', 0, this.walls); // bottom left
-        game.add.sprite(300, 320, 'wallH', 0, this.walls); // bottom right
-
-        game.add.sprite(-100, 160, 'wallH', 0, this.walls); // middle left
-        game.add.sprite(400, 160, 'wallH', 0, this.walls); // middle right
-
-        var middleTop = game.add.sprite(100, 80, 'wallH', 0, this.walls);
-        middleTop.scale.setTo(1.5, 1);
-        // (x scale: 1.5 = 150%, y scale: 1 = 100% = no change)
-
-        var middleBottom = game.add.sprite(100, 240, 'wallH', 0, this.walls);
-        middleBottom.scale.setTo(1.5, 1);
-
-        // set all walls to be immovable
-        this.walls.setAll('body.immovable', true);
+        // Now using a tilemap!
+        this.map = game.add.tilemap('map');
+        this.map.addTilesetImage('tileset');
+        // Create the layer by specifying the name of the Tiled layer
+        this.layer = this.map.createLayer('Tile Layer 1');
+        this.layer.resizeWorld(); // set world size to match layer size
+        this.map.setCollision(1);
 
     },
 
